@@ -1,11 +1,11 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { toPng } from 'html-to-image'
+import html2canvas from 'html2canvas'
 import AppLayout from '@/components/layout/AppLayout'
 import DoctrineCard, { type CardTheme } from '@/components/cards/DoctrineCard'
 import materials from '@/data/materials'
-import { Download, Check, Palette, Share2, Sparkles, Copy } from 'lucide-react'
+import { Download, Check, Palette, Share2, Sparkles, Copy, Eye } from 'lucide-react'
 
 export default function KartuDoktrinPage() {
   const [selectedMaterialId, setSelectedMaterialId] = useState(materials[0].id)
@@ -21,13 +21,16 @@ export default function KartuDoktrinPage() {
     setDownloading(true)
 
     try {
-      // Generate high-resolution PNG (pixelRatio: 2 for ultra crisp text and emblems)
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        quality: 1,
+      // High-resolution canvas rendering (scale: 2 for ultra crisp 2x DPI export)
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null,
+        logging: false,
       })
 
+      const dataUrl = canvas.toDataURL('image/png', 1.0)
       const link = document.createElement('a')
       const fileName = `siap-kartu-${activeMaterial.id}-${selectedTheme}.png`
       link.download = fileName
@@ -42,12 +45,19 @@ export default function KartuDoktrinPage() {
   }
 
   async function handleShare() {
-    if (!cardRef.current) return
+    if (!cardRef.current || downloading) return
 
     if (navigator.share) {
       try {
         setDownloading(true)
-        const dataUrl = await toPng(cardRef.current, { pixelRatio: 2 })
+        const canvas = await html2canvas(cardRef.current, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false,
+        })
+        const dataUrl = canvas.toDataURL('image/png', 1.0)
         const res = await fetch(dataUrl)
         const blob = await res.blob()
         const file = new File([blob], `siap-kartu-${activeMaterial.id}.png`, { type: 'image/png' })
@@ -58,7 +68,7 @@ export default function KartuDoktrinPage() {
           files: [file],
         })
       } catch {
-        // User cancelled or fallback
+        // User cancelled share dialog
       } finally {
         setDownloading(false)
       }
@@ -98,7 +108,7 @@ export default function KartuDoktrinPage() {
             KARTU DOKTRIN TNI
           </h1>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-            Kartu doktrin taktis potret beresolusi tinggi. Unduh secara instan sebagai wallpaper smartphone, poster hafalan, atau kartu saku prajurit.
+            Kartu doktrin taktis potret beresolusi tinggi dengan font besar yang jelas. Unduh secara instan sebagai wallpaper smartphone, poster hafalan, atau kartu saku prajurit.
           </p>
         </div>
 
@@ -110,7 +120,7 @@ export default function KartuDoktrinPage() {
               <button
                 key={m.id}
                 onClick={() => setSelectedMaterialId(m.id)}
-                className="py-2 px-2 text-center rounded-lg transition-all text-xs sm:text-sm font-bold flex flex-col items-center justify-center gap-0.5"
+                className="py-2.5 px-2 text-center rounded-lg transition-all text-xs sm:text-sm font-bold flex flex-col items-center justify-center gap-0.5 active:scale-95"
                 style={{
                   background: isSelected ? 'var(--color-bg-secondary)' : 'transparent',
                   color: isSelected ? 'var(--color-accent)' : 'var(--color-text-muted)',
@@ -119,7 +129,7 @@ export default function KartuDoktrinPage() {
                 }}
               >
                 <span>{m.name}</span>
-                <span style={{ fontSize: '0.62rem', fontWeight: 500, opacity: 0.75 }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 500, opacity: 0.75 }}>
                   {m.itemCount} Butir
                 </span>
               </button>
@@ -138,7 +148,7 @@ export default function KartuDoktrinPage() {
 
             <button
               onClick={() => setSelectedTheme('tactical')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
               style={{
                 background: selectedTheme === 'tactical' ? '#485B2C' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'tactical' ? '#FFFFFF' : 'var(--color-text-muted)',
@@ -151,7 +161,7 @@ export default function KartuDoktrinPage() {
 
             <button
               onClick={() => setSelectedTheme('gold')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
               style={{
                 background: selectedTheme === 'gold' ? '#8C6F23' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'gold' ? '#FAF7EE' : 'var(--color-text-muted)',
@@ -164,7 +174,7 @@ export default function KartuDoktrinPage() {
 
             <button
               onClick={() => setSelectedTheme('stealth')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
               style={{
                 background: selectedTheme === 'stealth' ? '#1E2E20' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'stealth' ? '#FFFFFF' : 'var(--color-text-muted)',
@@ -199,41 +209,34 @@ export default function KartuDoktrinPage() {
         </div>
 
         {/* Card Live Preview Container */}
-        <div className="flex flex-col items-center justify-center py-4">
-          <p className="section-label mb-3 text-center">PRATINJAU KARTU POTRET (HD)</p>
+        <div className="flex flex-col items-center justify-center py-2">
+          <div className="flex items-center gap-1.5 mb-3 text-muted text-xs">
+            <Eye size={13} />
+            <span>PRATINJAU KARTU POTRET (HD READY)</span>
+          </div>
 
           {/* Scaled Preview Wrapper for Mobile & Desktop */}
           <div
-            className="w-full flex items-center justify-center p-2 sm:p-6 rounded-2xl overflow-hidden"
+            className="w-full flex items-center justify-center p-2 sm:p-6 rounded-2xl overflow-x-auto"
             style={{
-              background: 'radial-gradient(circle at center, rgba(12,23,16,0.8) 0%, rgba(7,17,12,0.95) 100%)',
+              background: 'radial-gradient(circle at center, rgba(12,23,16,0.85) 0%, rgba(7,17,12,0.98) 100%)',
               border: '1px solid var(--color-border)',
               boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
             }}
           >
-            {/* The scaled container for responsiveness */}
             <div
-              className="transition-transform duration-300"
+              className="max-w-full overflow-x-auto pb-2"
               style={{
-                transformOrigin: 'top center',
-                maxWidth: '100%',
-                overflowX: 'auto',
-                paddingBottom: 8,
+                boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(123,190,69,0.15)',
+                borderRadius: 18,
+                display: 'inline-block',
               }}
             >
-              <div
-                style={{
-                  boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(123,190,69,0.15)',
-                  borderRadius: 16,
-                  display: 'inline-block',
-                }}
-              >
-                <DoctrineCard
-                  ref={cardRef}
-                  material={activeMaterial}
-                  theme={selectedTheme}
-                />
-              </div>
+              <DoctrineCard
+                ref={cardRef}
+                material={activeMaterial}
+                theme={selectedTheme}
+              />
             </div>
           </div>
 
@@ -245,11 +248,12 @@ export default function KartuDoktrinPage() {
               className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
             >
               <Download size={16} />
-              <span>{downloading ? 'Sedang Merender Gambar...' : `Unduh Kartu ${activeMaterial.name} (PNG)`}</span>
+              <span>{downloading ? 'Sedang Merender Gambar HD...' : `Unduh Kartu ${activeMaterial.name} (PNG)`}</span>
             </button>
 
             <button
               onClick={handleShare}
+              disabled={downloading}
               className="btn-ghost w-full py-2.5 text-xs flex items-center justify-center gap-2"
             >
               <Share2 size={14} />
