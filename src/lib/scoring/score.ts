@@ -64,13 +64,16 @@ export function calculateScore(comparison: ComparisonResult): number {
   const totalRef = comparison.correctCount + comparison.incorrectCount + comparison.missingCount
   if (totalRef === 0) return 0
 
-  const penaltyForIncorrect = comparison.incorrectCount * 0.5
-  const penaltyForExtra = comparison.extraCount * 0.3
+  // Base accuracy: percentage of canonical doctrine words correctly recalled
+  const baseAccuracy = (comparison.correctCount / totalRef) * 100
 
-  const rawScore = Math.max(
-    0,
-    ((comparison.correctCount - penaltyForIncorrect - penaltyForExtra) / totalRef) * 100
-  )
+  // Minor penalty for incorrect words (up to 30% relative)
+  const incorrectPenalty = (comparison.incorrectCount / totalRef) * 30
+
+  // Minor penalty for extra words (capped at max 10% so recitation prefixes never wipe out score)
+  const extraPenalty = Math.min(10, (comparison.extraCount / totalRef) * 15)
+
+  const rawScore = Math.max(0, baseAccuracy - incorrectPenalty - extraPenalty)
 
   return Math.round(Math.min(100, Math.max(0, rawScore)))
 }
@@ -84,10 +87,10 @@ export function getScoreCategory(score: number): ScoreCategory {
 }
 
 export function generateFeedback(score: number): string {
-  if (score >= 95) return 'Luar biasa! Hafalanmu sangat baik. Pertahankan konsistensimu.'
-  if (score >= 85) return 'Bagus! Hafalanmu sudah baik. Ada beberapa bagian yang perlu diperbaiki.'
-  if (score >= 70) return 'Cukup baik. Pelajari kembali bagian yang masih terlewat.'
-  return 'Ayo ulangi kembali materinya. Fokus pada bagian yang diberi tanda.'
+  if (score >= 95) return 'Luar biasa! Hafalanmu sangat tepat dan lancar. Pertahankan kedisiplinan ini.'
+  if (score >= 85) return 'Bagus! Sebagian besar butir hafalan sudah benar. Perhatikan kata yang kurang tepat.'
+  if (score >= 70) return 'Cukup baik. Pelajari kembali butir yang masih terlewat.'
+  return 'Ayo ulangi kembali materinya. Fokus pada butir-butir yang masih merah/abu-abu.'
 }
 
 export function scoreSubmission(userText: string, referenceText: string): ScoreResult {

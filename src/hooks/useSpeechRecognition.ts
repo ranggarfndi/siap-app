@@ -55,7 +55,9 @@ export function useSpeechRecognition({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const startTimeRef = useRef<number>(0)
   const transcriptRef = useRef<string>('')
+  const accumulatedFinalRef = useRef<string>('')
   const isStoppingRef = useRef<boolean>(false)
+  const isRecordingRef = useRef<boolean>(false)
 
   // Keep latest callbacks in refs to prevent stale closures or trigger loops
   const onResultRef = useRef(onResult)
@@ -90,7 +92,9 @@ export function useSpeechRecognition({
 
     try {
       if (recognitionRef.current) {
-        recognitionRef.current.abort()
+        try {
+          recognitionRef.current.abort()
+        } catch {}
       }
 
       const recognition = new SpeechRecognitionAPI()
@@ -102,52 +106,87 @@ export function useSpeechRecognition({
       recognitionRef.current = recognition
       startTimeRef.current = Date.now()
       transcriptRef.current = ''
+      accumulatedFinalRef.current = ''
       isStoppingRef.current = false
+      isRecordingRef.current = true
       setTranscript('')
 
       updateState('requesting_permission')
 
       recognition.onstart = () => {
+        isRecordingRef.current = true
         updateState('recording')
       }
 
       recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let fullTranscript = ''
-        for (let i = 0; i < event.results.length; i++) {
-          fullTranscript += event.results[i][0].transcript + ' '
+        let interimTranscript = ''
+        let newFinalTranscript = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i]
+          if (res.isFinal) {
+            newFinalTranscript += res[0].transcript + ' '
+          } else {
+            interimTranscript += res[0].transcript + ' '
+          }
         }
-        const cleaned = fullTranscript.trim()
-        if (cleaned) {
-          transcriptRef.current = cleaned
-          setTranscript(cleaned)
+
+        if (newFinalTranscript) {
+          accumulatedFinalRef.current = (
+            accumulatedFinalRef.current + ' ' + newFinalTranscript
+          ).trim()
+        }
+
+        const combined = (
+          accumulatedFinalRef.current + ' ' + interimTranscript
+        ).trim()
+
+        if (combined) {
+          transcriptRef.current = combined
+          setTranscript(combined)
         }
       }
 
       recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         if (isStoppingRef.current) return
 
-        if (event.error === 'not-allowed') {
-          onErrorRef.current?.('Akses microphone belum diberikan. Aktifkan izin microphone pada browser Anda.')
-        } else if (event.error === 'no-speech') {
-          onErrorRef.current?.('Tidak ada suara terdeteksi. Pastikan microphone Anda aktif dan coba lagi.')
-        } else {
-          onErrorRef.current?.(`Terjadi kesalahan pada pengenalan suara: ${event.error}`)
+        // Ignore harmless "no-speech" network blips while user pauses to breathe
+        if (event.error === 'no-speech') {
+          return
         }
-        updateState('error')
+
+        if (event.error === 'not-allowed') {
+          isRecordingRef.current = false
+          onErrorRef.current?.('Akses microphone belum diberikan. Aktifkan izin microphone pada browser Anda.')
+          updateState('error')
+        } else if (event.error !== 'aborted') {
+          console.warn('SpeechRecognition warning:', event.error)
+        }
       }
 
       recognition.onend = () => {
-        // Recognition ended
+        // If user is still recording and hasn't explicitly stopped, restart seamlessly (avoids silence cutoff)
+        if (isRecordingRef.current && !isStoppingRef.current) {
+          try {
+            recognition.start()
+          } catch {
+            // Already started or restarting
+          }
+          return
+        }
+
+        // If user explicitly pressed stop
         if (isStoppingRef.current) {
           const finalResult = transcriptRef.current.trim()
           const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000))
           isStoppingRef.current = false
+          isRecordingRef.current = false
 
           if (finalResult) {
             updateState('completed')
             onResultRef.current?.({ transcript: finalResult, duration })
           } else {
-            onErrorRef.current?.('Tidak ada teks hafalan yang terdeteksi. Silakan coba rekam kembali.')
+            onErrorRef.current?.('Tidak ada suara hafalan yang terdeteksi. Silakan coba rekam kembali.')
             updateState('error')
           }
         }
@@ -156,6 +195,7 @@ export function useSpeechRecognition({
       recognition.start()
     } catch (err) {
       console.error('Failed to start speech recognition:', err)
+      isRecordingRef.current = false
       onErrorRef.current?.('Gagal memulai microphone. Silakan coba lagi.')
       updateState('error')
     }
@@ -164,17 +204,20 @@ export function useSpeechRecognition({
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) {
       isStoppingRef.current = true
+      isRecordingRef.current = false
       updateState('transcribing')
+
       try {
         recognitionRef.current.stop()
       } catch (e) {
         console.warn('Error stopping recognition:', e)
       }
 
-      // Safety timeout in case onend takes too long to fire
+      // Safety fallback in case onend takes too long
       setTimeout(() => {
         if (isStoppingRef.current) {
           isStoppingRef.current = false
+          isRecordingRef.current = false
           const finalResult = transcriptRef.current.trim()
           const duration = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000))
 
@@ -182,16 +225,17 @@ export function useSpeechRecognition({
             updateState('completed')
             onResultRef.current?.({ transcript: finalResult, duration })
           } else {
-            onErrorRef.current?.('Tidak ada teks hafalan yang terdeteksi. Silakan coba rekam kembali.')
+            onErrorRef.current?.('Tidak ada suara hafalan yang terdeteksi. Silakan coba rekam kembali.')
             updateState('error')
           }
         }
-      }, 700)
+      }, 750)
     }
   }, [updateState])
 
   const reset = useCallback(() => {
     isStoppingRef.current = false
+    isRecordingRef.current = false
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort()
@@ -199,6 +243,7 @@ export function useSpeechRecognition({
       recognitionRef.current = null
     }
     transcriptRef.current = ''
+    accumulatedFinalRef.current = ''
     setTranscript('')
     updateState('idle')
   }, [updateState])
