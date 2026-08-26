@@ -1,69 +1,76 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import AppLayout from '@/components/layout/AppLayout'
 import HeroSection from '@/components/dashboard/HeroSection'
 import MaterialCards from '@/components/dashboard/MaterialCards'
-import DailyTarget from '@/components/dashboard/DailyTarget'
-import StreakBadge from '@/components/dashboard/StreakBadge'
 import RecentHistory from '@/components/dashboard/RecentHistory'
-import { materials } from '@/data/materials'
+import StreakBadge from '@/components/dashboard/StreakBadge'
+import DailyTarget from '@/components/dashboard/DailyTarget'
+import materials from '@/data/materials'
 import { getAllProgress } from '@/lib/storage/progress'
-import { getRecentSubmissions, getSubmissionCount } from '@/lib/storage/submissions'
-import { getStreak, getTodayActivity } from '@/lib/storage/activity'
+import { getRecentSubmissions } from '@/lib/storage/submissions'
 import { getSettings } from '@/lib/storage/settings'
-import type { Progress, Submission, Activity, Settings } from '@/types'
-import { Mic2, BookOpen } from 'lucide-react'
-import Link from 'next/link'
+import { getStreak, getTodayActivity } from '@/lib/storage/activity'
+import { Mic2, BookOpen, Sparkles } from 'lucide-react'
+import type { Progress, Submission, Activity } from '@/types'
 
 export default function DashboardPage() {
   const [progressList, setProgressList] = useState<Progress[]>([])
   const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([])
-  const [submissionCount, setSubmissionCount] = useState(0)
-  const [streak, setStreak] = useState(0)
+  const [dailyTarget, setDailyTarget] = useState(3)
   const [todayActivity, setTodayActivity] = useState<Activity | undefined>()
-  const [settings, setSettings] = useState<Settings | null>(null)
+  const [submittedTodayIds, setSubmittedTodayIds] = useState<string[]>([])
+  const [streak, setStreak] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
+    async function loadDashboardData() {
       try {
-        const [prog, recent, count, str, activity, sets] = await Promise.all([
+        const [progList, recSubs, settings, todayAct, currentStreak] = await Promise.all([
           getAllProgress(),
           getRecentSubmissions(5),
-          getSubmissionCount(),
-          getStreak(),
-          getTodayActivity(),
           getSettings(),
+          getTodayActivity(),
+          getStreak(),
         ])
-        setProgressList(prog)
-        setRecentSubmissions(recent)
-        setSubmissionCount(count)
-        setStreak(str)
-        setTodayActivity(activity)
-        setSettings(sets)
+
+        setProgressList(progList)
+        setRecentSubmissions(recSubs)
+        setDailyTarget(settings.dailyTarget)
+        setTodayActivity(todayAct)
+        setStreak(currentStreak)
+
+        if (todayAct) {
+          const todaySubs = recSubs.filter((s) => {
+            const d = new Date(s.createdAt)
+            const today = new Date()
+            return d.toDateString() === today.toDateString()
+          })
+          setSubmittedTodayIds([...new Set(todaySubs.map((s) => s.materialId))])
+        }
+      } catch (err) {
+        console.error('Failed to load dashboard data:', err)
       } finally {
         setLoading(false)
       }
     }
-    load()
+
+    loadDashboardData()
   }, [])
 
-  const progressMap = Object.fromEntries(progressList.map((p) => [p.materialId, p]))
-
+  const progressMap: Record<string, Progress | undefined> = Object.fromEntries(
+    progressList.map((p) => [p.materialId, p])
+  )
+  const activeMaterials = progressList.filter((p) => p.masteryPercent >= 85).length
+  const submissionCount = progressList.reduce((acc, p) => acc + p.attemptCount, 0)
   const totalProgress =
     progressList.length > 0
-      ? Math.round(progressList.reduce((acc, p) => acc + p.masteryPercent, 0) / progressList.length)
+      ? Math.round(
+          progressList.reduce((acc, p) => acc + p.masteryPercent, 0) / materials.length
+        )
       : 0
-
-  const activeMaterials = progressList.filter((p) => p.attemptCount > 0).length
-
-  // Materials that had a submission today
-  const todaySubmissions = recentSubmissions.filter((s) => {
-    const today = new Date().toDateString()
-    return new Date(s.createdAt).toDateString() === today
-  })
-  const submittedToday = [...new Set(todaySubmissions.map((s) => s.materialId))]
 
   if (loading) {
     return (
@@ -73,8 +80,8 @@ export default function DashboardPage() {
             style={{
               width: 36,
               height: 36,
-              border: '3px solid var(--color-border)',
-              borderTop: '3px solid var(--color-accent)',
+              border: '2px solid var(--color-border)',
+              borderTop: '2px solid var(--color-accent)',
               borderRadius: '50%',
               animation: 'spin 0.8s linear infinite',
             }}
@@ -97,8 +104,8 @@ export default function DashboardPage() {
           progressList={progressList}
         />
 
-        {/* Quick Actions Grid */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+        {/* Quick Actions Grid (3 Columns) */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
           <Link
             href="/setor"
             className="card card-hover flex items-center gap-2.5 sm:gap-3.5 p-3 sm:p-4 active:scale-[0.98] transition-all"
@@ -158,6 +165,40 @@ export default function DashboardPage() {
               </p>
             </div>
           </Link>
+
+          <Link
+            href="/kartu"
+            className="col-span-2 sm:col-span-1 card card-hover flex items-center gap-2.5 sm:gap-3.5 p-3 sm:p-4 active:scale-[0.98] transition-all"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-bg-card) 0%, rgba(201,163,61,0.08) 100%)',
+              borderColor: 'rgba(201,163,61,0.3)',
+            }}
+          >
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'rgba(201,163,61,0.18)',
+                border: '1px solid rgba(201,163,61,0.35)',
+              }}
+            >
+              <Sparkles size={18} style={{ color: 'var(--color-gold)' }} />
+            </div>
+            <div className="min-w-0">
+              <p
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary)',
+                  lineHeight: 1.2,
+                }}
+              >
+                Kartu Doktrin
+              </p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                Unduh kartu HD
+              </p>
+            </div>
+          </Link>
         </div>
 
         {/* Material Cards */}
@@ -179,10 +220,10 @@ export default function DashboardPage() {
           <div className="space-y-4">
             <StreakBadge streak={streak} />
             <DailyTarget
-              target={settings?.dailyTarget ?? 3}
+              target={dailyTarget}
               todayActivity={todayActivity}
               materials={materials}
-              submittedMaterialIds={submittedToday}
+              submittedMaterialIds={submittedTodayIds}
             />
           </div>
         </div>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Trophy, Settings } from 'lucide-react'
+import { Trophy, Settings, Sparkles } from 'lucide-react'
 import { getXP } from '@/lib/gamification/xp'
 
 export default function AppHeader() {
@@ -72,7 +72,7 @@ export default function AppHeader() {
         </div>
       </Link>
 
-      {/* Right controls: XP Badge, Pencapaian, Pengaturan */}
+      {/* Right controls: XP Badge, Kartu Doktrin, Pencapaian, Pengaturan */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <Link
           href="/pencapaian"
@@ -94,6 +94,19 @@ export default function AppHeader() {
           >
             {xp} XP
           </span>
+        </Link>
+
+        <Link
+          href="/kartu"
+          aria-label="Kartu Doktrin"
+          className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+          style={{
+            background: 'var(--color-bg-card)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-accent)',
+          }}
+        >
+          <Sparkles size={14} />
         </Link>
 
         <Link

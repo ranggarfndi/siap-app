@@ -20,3 +20,5 @@ export const MATERIAL_ROUTE_MAP: Record<string, MaterialId> = {
 }
 
 export { saptaMarga, sumpahPrajurit, delapanWajibTni }
+
+export default materials

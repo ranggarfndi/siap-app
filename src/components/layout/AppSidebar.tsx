@@ -11,12 +11,14 @@ import {
   BarChart3,
   Trophy,
   Settings,
+  Sparkles,
 } from 'lucide-react'
 
 const navItems = [
   { href: '/', label: 'Beranda', icon: LayoutDashboard },
   { href: '/latihan', label: 'Latihan', icon: BookOpen },
   { href: '/setor', label: 'Setor Hafalan', icon: Mic2 },
+  { href: '/kartu', label: 'Kartu Doktrin', icon: Sparkles },
   { href: '/riwayat', label: 'Riwayat', icon: History },
   { href: '/progress', label: 'Nilai & Progress', icon: BarChart3 },
   { href: '/pencapaian', label: 'Pencapaian', icon: Trophy },
