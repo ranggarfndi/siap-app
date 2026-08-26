@@ -1,69 +1,192 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useEffect, useState } from 'react'
+import AppLayout from '@/components/layout/AppLayout'
+import HeroSection from '@/components/dashboard/HeroSection'
+import MaterialCards from '@/components/dashboard/MaterialCards'
+import DailyTarget from '@/components/dashboard/DailyTarget'
+import StreakBadge from '@/components/dashboard/StreakBadge'
+import RecentHistory from '@/components/dashboard/RecentHistory'
+import { materials } from '@/data/materials'
+import { getAllProgress } from '@/lib/storage/progress'
+import { getRecentSubmissions, getSubmissionCount } from '@/lib/storage/submissions'
+import { getStreak, getTodayActivity } from '@/lib/storage/activity'
+import { getSettings } from '@/lib/storage/settings'
+import type { Progress, Submission, Activity, Settings } from '@/types'
+import { Mic2, BookOpen } from 'lucide-react'
+import Link from 'next/link'
+
+export default function DashboardPage() {
+  const [progressList, setProgressList] = useState<Progress[]>([])
+  const [recentSubmissions, setRecentSubmissions] = useState<Submission[]>([])
+  const [submissionCount, setSubmissionCount] = useState(0)
+  const [streak, setStreak] = useState(0)
+  const [todayActivity, setTodayActivity] = useState<Activity | undefined>()
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [prog, recent, count, str, activity, sets] = await Promise.all([
+          getAllProgress(),
+          getRecentSubmissions(5),
+          getSubmissionCount(),
+          getStreak(),
+          getTodayActivity(),
+          getSettings(),
+        ])
+        setProgressList(prog)
+        setRecentSubmissions(recent)
+        setSubmissionCount(count)
+        setStreak(str)
+        setTodayActivity(activity)
+        setSettings(sets)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const progressMap = Object.fromEntries(progressList.map((p) => [p.materialId, p]))
+
+  const totalProgress =
+    progressList.length > 0
+      ? Math.round(progressList.reduce((acc, p) => acc + p.masteryPercent, 0) / progressList.length)
+      : 0
+
+  const activeMaterials = progressList.filter((p) => p.attemptCount > 0).length
+
+  // Materials that had a submission today
+  const todaySubmissions = recentSubmissions.filter((s) => {
+    const today = new Date().toDateString()
+    return new Date(s.createdAt).toDateString() === today
+  })
+  const submittedToday = [...new Set(todaySubmissions.map((s) => s.materialId))]
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[70vh]">
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              border: '3px solid var(--color-border)',
+              borderTop: '3px solid var(--color-accent)',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </AppLayout>
+    )
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <AppLayout>
+      <div className="page-container space-y-4 sm:space-y-6">
+        {/* Hero Section */}
+        <HeroSection
+          totalProgress={totalProgress}
+          activeMaterials={activeMaterials}
+          totalMaterials={materials.length}
+          totalSubmissions={submissionCount}
+          progressList={progressList}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Quick Actions Grid */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+          <Link
+            href="/setor"
+            className="card card-hover flex items-center gap-2.5 sm:gap-3.5 p-3 sm:p-4 active:scale-[0.98] transition-all"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'rgba(123,190,69,0.15)',
+                border: '1px solid rgba(123,190,69,0.3)',
+              }}
+            >
+              <Mic2 size={18} style={{ color: 'var(--color-accent)' }} />
+            </div>
+            <div className="min-w-0">
+              <p
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary)',
+                  lineHeight: 1.2,
+                }}
+              >
+                Setor Hafalan
+              </p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                Suara & ketikan
+              </p>
+            </div>
+          </Link>
+
+          <Link
+            href="/latihan"
+            className="card card-hover flex items-center gap-2.5 sm:gap-3.5 p-3 sm:p-4 active:scale-[0.98] transition-all"
+          >
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'rgba(201,163,61,0.12)',
+                border: '1px solid rgba(201,163,61,0.25)',
+              }}
+            >
+              <BookOpen size={18} style={{ color: 'var(--color-gold)' }} />
+            </div>
+            <div className="min-w-0">
+              <p
+                style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  color: 'var(--color-text-primary)',
+                  lineHeight: 1.2,
+                }}
+              >
+                Pusat Latihan
+              </p>
+              <p style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                Belajar & flashcard
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        {/* Material Cards */}
+        <div>
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <p className="section-label">MATERI HAFALAN</p>
+            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+              {materials.length} Doktrin Utama
+            </span>
+          </div>
+          <MaterialCards materials={materials} progressMap={progressMap} />
+        </div>
+
+        {/* Bottom Grid: Recent history + Streak & Daily Target */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <RecentHistory submissions={recentSubmissions} />
+          </div>
+          <div className="space-y-4">
+            <StreakBadge streak={streak} />
+            <DailyTarget
+              target={settings?.dailyTarget ?? 3}
+              todayActivity={todayActivity}
+              materials={materials}
+              submittedMaterialIds={submittedToday}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
-    </div>
-  );
+      </div>
+    </AppLayout>
+  )
 }

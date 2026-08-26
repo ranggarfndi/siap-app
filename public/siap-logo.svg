@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <!-- Shield icon -->
+  <path d="M8 6 L16 4 L24 6 L24 18 Q24 26 16 30 Q8 26 8 18 Z"
+    fill="none" stroke="#7BBE45" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Check inside shield -->
+  <path d="M11 17 L15 21 L21 12"
+    stroke="#7BBE45" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- SIAP wordmark -->
+  <text x="30" y="23" font-family="'Barlow Condensed', 'Inter', sans-serif"
+    font-weight="800" font-size="18" letter-spacing="3" fill="#7BBE45">SIAP</text>
+</svg>
