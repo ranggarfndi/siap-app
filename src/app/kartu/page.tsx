@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import html2canvas from 'html2canvas'
 import AppLayout from '@/components/layout/AppLayout'
 import DoctrineCard, { type CardTheme } from '@/components/cards/DoctrineCard'
@@ -12,9 +12,26 @@ export default function KartuDoktrinPage() {
   const [selectedTheme, setSelectedTheme] = useState<CardTheme>('tactical')
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [scale, setScale] = useState(1)
+
   const cardRef = useRef<HTMLDivElement>(null)
+  const previewContainerRef = useRef<HTMLDivElement>(null)
 
   const activeMaterial = materials.find((m) => m.id === selectedMaterialId) ?? materials[0]
+
+  useEffect(() => {
+    function updateScale() {
+      if (previewContainerRef.current) {
+        const availableWidth = previewContainerRef.current.clientWidth - 16
+        const cardWidth = 620
+        const newScale = Math.min(1, Math.max(0.42, availableWidth / cardWidth))
+        setScale(newScale)
+      }
+    }
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    return () => window.removeEventListener('resize', updateScale)
+  }, [])
 
   async function handleDownload() {
     if (!cardRef.current || downloading) return
@@ -208,7 +225,7 @@ export default function KartuDoktrinPage() {
           </div>
         </div>
 
-        {/* Card Live Preview Container */}
+        {/* Card Live Preview Container with Auto-Scale for Mobile */}
         <div className="flex flex-col items-center justify-center py-2">
           <div className="flex items-center gap-1.5 mb-3 text-muted text-xs">
             <Eye size={13} />
@@ -217,19 +234,23 @@ export default function KartuDoktrinPage() {
 
           {/* Scaled Preview Wrapper for Mobile & Desktop */}
           <div
-            className="w-full flex items-center justify-center p-2 sm:p-6 rounded-2xl overflow-x-auto"
+            ref={previewContainerRef}
+            className="w-full flex items-center justify-center p-2 sm:p-6 rounded-2xl overflow-hidden"
             style={{
               background: 'radial-gradient(circle at center, rgba(12,23,16,0.85) 0%, rgba(7,17,12,0.98) 100%)',
               border: '1px solid var(--color-border)',
               boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
+              minHeight: Math.round(1020 * scale) + 24,
             }}
           >
             <div
-              className="max-w-full overflow-x-auto pb-2"
               style={{
+                width: 620,
+                transform: `scale(${scale})`,
+                transformOrigin: 'top center',
                 boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(123,190,69,0.15)',
                 borderRadius: 18,
-                display: 'inline-block',
+                marginBottom: -Math.round(1020 * (1 - scale)),
               }}
             >
               <DoctrineCard
