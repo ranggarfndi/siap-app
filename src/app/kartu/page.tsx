@@ -5,33 +5,41 @@ import html2canvas from 'html2canvas'
 import AppLayout from '@/components/layout/AppLayout'
 import DoctrineCard, { type CardTheme } from '@/components/cards/DoctrineCard'
 import materials from '@/data/materials'
-import { Download, Check, Palette, Share2, Sparkles, Copy, Eye } from 'lucide-react'
+import { Download, Check, Palette, Share2, Sparkles, Copy, Eye, Shield, Scroll, ListChecks } from 'lucide-react'
 
 export default function KartuDoktrinPage() {
   const [selectedMaterialId, setSelectedMaterialId] = useState(materials[0].id)
   const [selectedTheme, setSelectedTheme] = useState<CardTheme>('tactical')
   const [downloading, setDownloading] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(0.55)
 
   const cardRef = useRef<HTMLDivElement>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
 
   const activeMaterial = materials.find((m) => m.id === selectedMaterialId) ?? materials[0]
 
+  // Automatically recalculate precise scale to fit any phone or desktop screen perfectly
   useEffect(() => {
     function updateScale() {
       if (previewContainerRef.current) {
-        const availableWidth = previewContainerRef.current.clientWidth - 16
-        const cardWidth = 620
-        const newScale = Math.min(1, Math.max(0.42, availableWidth / cardWidth))
-        setScale(newScale)
+        // Container available width minus inner padding (16px)
+        const containerWidth = previewContainerRef.current.clientWidth - 16
+        const cardWidth = 620 // Native card render width
+        const calculatedScale = Math.min(1, Math.max(0.38, containerWidth / cardWidth))
+        setScale(calculatedScale)
       }
     }
+
     updateScale()
     window.addEventListener('resize', updateScale)
-    return () => window.removeEventListener('resize', updateScale)
-  }, [])
+    // Small timeout to guarantee DOM geometry is fully mounted
+    const t = setTimeout(updateScale, 100)
+    return () => {
+      window.removeEventListener('resize', updateScale)
+      clearTimeout(t)
+    }
+  }, [selectedMaterialId])
 
   async function handleDownload() {
     if (!cardRef.current || downloading) return
@@ -85,7 +93,7 @@ export default function KartuDoktrinPage() {
           files: [file],
         })
       } catch {
-        // User cancelled share dialog
+        // User cancelled share
       } finally {
         setDownloading(false)
       }
@@ -104,49 +112,60 @@ export default function KartuDoktrinPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  const materialIcons = {
+    'sapta-marga': Shield,
+    'sumpah-prajurit': Scroll,
+    '8-wajib-tni': ListChecks,
+  }
+
+  const nativeCardHeight = 1020
+
   return (
     <AppLayout>
-      <div className="page-container max-w-4xl space-y-4 sm:space-y-6">
+      <div className="page-container max-w-3xl space-y-3.5 sm:space-y-5 px-3 sm:px-6">
         {/* Header */}
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2 mb-1">
             <Sparkles size={16} style={{ color: 'var(--color-gold)' }} />
-            <p className="section-label">KOLEKSI & KARTU PRAJURIT</p>
+            <p className="section-label text-[0.68rem] sm:text-xs">KOLEKSI DOKTRIN PRAJURIT</p>
           </div>
           <h1
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 'clamp(1.4rem, 4vw, 2.2rem)',
+              fontSize: 'clamp(1.35rem, 4.5vw, 2rem)',
               fontWeight: 800,
               letterSpacing: '0.05em',
               color: 'var(--color-text-primary)',
+              lineHeight: 1.15,
             }}
           >
             KARTU DOKTRIN TNI
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
-            Kartu doktrin taktis potret beresolusi tinggi dengan font besar yang jelas. Unduh secara instan sebagai wallpaper smartphone, poster hafalan, atau kartu saku prajurit.
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+            Kartu potret HD siap simpan untuk wallpaper smartphone, poster hafalan saku, atau media cetak.
           </p>
         </div>
 
-        {/* Material Selection Tabs */}
-        <div className="grid grid-cols-3 gap-2 p-1 rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border)]">
+        {/* Material Selection Tabs (Clean mobile segmented bar) */}
+        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border)]">
           {materials.map((m) => {
             const isSelected = m.id === selectedMaterialId
+            const Icon = materialIcons[m.id as keyof typeof materialIcons] ?? Shield
             return (
               <button
                 key={m.id}
                 onClick={() => setSelectedMaterialId(m.id)}
-                className="py-2.5 px-2 text-center rounded-lg transition-all text-xs sm:text-sm font-bold flex flex-col items-center justify-center gap-0.5 active:scale-95"
+                className="py-2 px-1 text-center rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 active:scale-95"
                 style={{
                   background: isSelected ? 'var(--color-bg-secondary)' : 'transparent',
                   color: isSelected ? 'var(--color-accent)' : 'var(--color-text-muted)',
-                  border: isSelected ? '1px solid rgba(123,190,69,0.3)' : '1px solid transparent',
-                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
+                  border: isSelected ? '1px solid rgba(123,190,69,0.35)' : '1px solid transparent',
+                  boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.35)' : 'none',
                 }}
               >
-                <span>{m.name}</span>
-                <span style={{ fontSize: '0.65rem', fontWeight: 500, opacity: 0.75 }}>
+                <Icon size={15} style={{ color: isSelected ? 'var(--color-accent)' : 'var(--color-text-muted)' }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: isSelected ? 800 : 600 }}>{m.name}</span>
+                <span style={{ fontSize: '0.6rem', color: isSelected ? 'var(--color-gold)' : 'var(--color-text-muted)', opacity: 0.85 }}>
                   {m.itemCount} Butir
                 </span>
               </button>
@@ -154,93 +173,78 @@ export default function KartuDoktrinPage() {
           })}
         </div>
 
-        {/* Theme Selector & Actions Bar */}
-        <div className="card p-3.5 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Theme buttons */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-            <div className="flex items-center gap-1 text-xs text-muted mr-1">
-              <Palette size={14} />
-              <span className="hidden xs:inline">Tema:</span>
+        {/* Theme Selector (3 Equal Pill Tabs on Mobile) */}
+        <div className="card p-2.5 sm:p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-secondary">
+              <Palette size={13} style={{ color: 'var(--color-gold)' }} />
+              <span>PILIH TEMA KARTU:</span>
             </div>
+          </div>
 
+          <div className="grid grid-cols-3 gap-1.5">
             <button
               onClick={() => setSelectedTheme('tactical')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
+              className="py-2 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
               style={{
                 background: selectedTheme === 'tactical' ? '#485B2C' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'tactical' ? '#FFFFFF' : 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
+                border: selectedTheme === 'tactical' ? '1px solid #7BBE45' : '1px solid var(--color-border)',
+                boxShadow: selectedTheme === 'tactical' ? '0 2px 10px rgba(123,190,69,0.2)' : 'none',
               }}
             >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#7BBE45]" />
-              Tactical Army
+              <span className="w-2 h-2 rounded-full bg-[#7BBE45]" />
+              <span className="text-[0.7rem] sm:text-xs">Tactical</span>
             </button>
 
             <button
               onClick={() => setSelectedTheme('gold')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
+              className="py-2 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
               style={{
                 background: selectedTheme === 'gold' ? '#8C6F23' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'gold' ? '#FAF7EE' : 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
+                border: selectedTheme === 'gold' ? '1px solid #E3B341' : '1px solid var(--color-border)',
+                boxShadow: selectedTheme === 'gold' ? '0 2px 10px rgba(227,179,65,0.2)' : 'none',
               }}
             >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#E3B341]" />
-              Gold Commander
+              <span className="w-2 h-2 rounded-full bg-[#E3B341]" />
+              <span className="text-[0.7rem] sm:text-xs">Gold</span>
             </button>
 
             <button
               onClick={() => setSelectedTheme('stealth')}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 flex-shrink-0"
+              className="py-2 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 active:scale-95"
               style={{
                 background: selectedTheme === 'stealth' ? '#1E2E20' : 'var(--color-bg-secondary)',
                 color: selectedTheme === 'stealth' ? '#FFFFFF' : 'var(--color-text-muted)',
-                border: '1px solid var(--color-border)',
+                border: selectedTheme === 'stealth' ? '1px solid #52D68A' : '1px solid var(--color-border)',
+                boxShadow: selectedTheme === 'stealth' ? '0 2px 10px rgba(82,214,138,0.2)' : 'none',
               }}
             >
-              <span className="w-2.5 h-2.5 rounded-full bg-[#52D68A]" />
-              Stealth Ops
-            </button>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyText}
-              className="btn-ghost flex-1 sm:flex-initial text-xs py-2 px-3 flex items-center justify-center gap-1.5"
-              title="Salin Teks Doktrin"
-            >
-              {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
-              <span>{copied ? 'Tersalin!' : 'Salin Teks'}</span>
-            </button>
-
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="btn-primary flex-1 sm:flex-initial text-xs py-2 px-4 flex items-center justify-center gap-1.5"
-            >
-              <Download size={14} />
-              <span>{downloading ? 'Memproses...' : 'Unduh Gambar (PNG)'}</span>
+              <span className="w-2 h-2 rounded-full bg-[#52D68A]" />
+              <span className="text-[0.7rem] sm:text-xs">Stealth</span>
             </button>
           </div>
         </div>
 
-        {/* Card Live Preview Container with Auto-Scale for Mobile */}
-        <div className="flex flex-col items-center justify-center py-2">
-          <div className="flex items-center gap-1.5 mb-3 text-muted text-xs">
-            <Eye size={13} />
-            <span>PRATINJAU KARTU POTRET (HD READY)</span>
+        {/* Card Showcase Frame (Auto-scaled dynamically on mobile) */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs px-1 text-muted">
+            <div className="flex items-center gap-1">
+              <Eye size={13} style={{ color: 'var(--color-accent)' }} />
+              <span className="font-semibold text-[0.7rem]">PRATINJAU KARTU</span>
+            </div>
+            <span className="text-[0.65rem] text-muted">Format Potret HD</span>
           </div>
 
-          {/* Scaled Preview Wrapper for Mobile & Desktop */}
           <div
             ref={previewContainerRef}
-            className="w-full flex items-center justify-center p-2 sm:p-6 rounded-2xl overflow-hidden"
+            className="w-full flex items-start justify-center p-2 sm:p-5 rounded-2xl overflow-hidden"
             style={{
-              background: 'radial-gradient(circle at center, rgba(12,23,16,0.85) 0%, rgba(7,17,12,0.98) 100%)',
-              border: '1px solid var(--color-border)',
-              boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
-              minHeight: Math.round(1020 * scale) + 24,
+              background: 'radial-gradient(circle at center, rgba(12,23,16,0.92) 0%, rgba(5,10,7,0.98) 100%)',
+              border: '1px solid var(--color-border-accent)',
+              boxShadow: 'inset 0 0 40px rgba(0,0,0,0.7), 0 8px 30px rgba(0,0,0,0.5)',
+              height: Math.round(nativeCardHeight * scale) + 24,
             }}
           >
             <div
@@ -248,9 +252,9 @@ export default function KartuDoktrinPage() {
                 width: 620,
                 transform: `scale(${scale})`,
                 transformOrigin: 'top center',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(123,190,69,0.15)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.9), 0 0 35px rgba(123,190,69,0.18)',
                 borderRadius: 18,
-                marginBottom: -Math.round(1020 * (1 - scale)),
+                flexShrink: 0,
               }}
             >
               <DoctrineCard
@@ -260,22 +264,35 @@ export default function KartuDoktrinPage() {
               />
             </div>
           </div>
+        </div>
 
-          {/* Download & Share bottom CTA on mobile */}
-          <div className="w-full mt-4 flex flex-col sm:flex-row gap-2.5 justify-center max-w-md">
+        {/* Bottom Actions Suite */}
+        <div className="space-y-2 pt-1 pb-4">
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="btn-primary w-full py-3 sm:py-3.5 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            style={{
+              boxShadow: '0 4px 20px rgba(123,190,69,0.25)',
+            }}
+          >
+            <Download size={16} />
+            <span>{downloading ? 'Sedang Merender Gambar HD...' : `Unduh Gambar Kartu ${activeMaterial.name} (PNG HD)`}</span>
+          </button>
+
+          <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2"
+              onClick={handleCopyText}
+              className="btn-ghost py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95"
             >
-              <Download size={16} />
-              <span>{downloading ? 'Sedang Merender Gambar HD...' : `Unduh Kartu ${activeMaterial.name} (PNG)`}</span>
+              {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+              <span>{copied ? 'Teks Tersalin!' : 'Salin Teks Doktrin'}</span>
             </button>
 
             <button
               onClick={handleShare}
               disabled={downloading}
-              className="btn-ghost w-full py-2.5 text-xs flex items-center justify-center gap-2"
+              className="btn-ghost py-2.5 px-3 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95"
             >
               <Share2 size={14} />
               <span>Bagikan Kartu</span>
